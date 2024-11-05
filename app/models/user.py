@@ -1,4 +1,7 @@
-from sqlalchemy import String
+from datetime import datetime
+
+from sqlalchemy import String, func
+from sqlalchemy.dialects.postgresql import TIMESTAMP
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base, intpk, str100
@@ -16,3 +19,4 @@ class User(Base):
     avatar: Mapped[str | None]
     latitude: Mapped[float | None]
     longitude: Mapped[float | None]
+    created_at: Mapped[datetime] = mapped_column(TIMESTAMP(), nullable=False, server_default=func.now())

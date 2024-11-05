@@ -27,3 +27,7 @@ class UserOut(UserBase):
 class UserGender(str, Enum):
     male = "мужчина"
     female = "женщина"
+
+
+class MatchUser(BaseModel):
+    email: EmailStr

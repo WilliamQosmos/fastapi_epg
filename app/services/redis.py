@@ -1,6 +1,6 @@
 import pickle
 
-from redis import Redis
+from redis.asyncio import Redis
 
 from app.core.config import settings
 

@@ -1,5 +1,6 @@
-from app.models.base import Base, intpk
 from sqlalchemy.orm import Mapped, mapped_column
+
+from app.models.base import Base, intpk
 
 
 class Coincidence(Base):

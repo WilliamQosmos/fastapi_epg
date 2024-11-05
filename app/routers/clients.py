@@ -14,7 +14,7 @@ from app.daos.coincidences import CoincidenceDao
 from app.daos.user import UserDao
 from app.schemas.exceptions import HTTPError, ValidationError
 from app.schemas.token import Token
-from app.schemas.user import UserGender, UserIn
+from app.schemas.user import MatchUser, UserGender, UserIn
 from app.services.auth import AuthService
 from app.services.emails import EmailService
 from app.services.redis import RedisService
@@ -32,6 +32,8 @@ router = APIRouter(route_class=DishkaRoute, tags=["Clients"], prefix="/clients")
     responses={
         422: {"description": "Validation error", "model": ValidationError},
         400: {"description": "Bad request", "model": HTTPError},
+        401: {"description": "Unauthorized", "model": HTTPError},
+        403: {"description": "Forbidden", "model": HTTPError},
         201: {"description": "Created", "model": Token},
         200: {"description": "OK", "model": Token},
     },
@@ -115,8 +117,13 @@ async def create_client(
     name="Поиск симпатии",
     description="Если возникает взаимная симпатия, в ответе возвращается почта другого участника",
     responses={
-        200: {"description": "OK", "model": JSONResponse},
+        200: {"description": "OK", "model": MatchUser},
         204: {"description": "No Content"},
+        400: {"description": "Bad request", "model": HTTPError},
+        401: {"description": "Unauthorized", "model": HTTPError},
+        403: {"description": "Forbidden", "model": HTTPError},
+        422: {"description": "Validation error", "model": ValidationError},
+        429: {"description": "Too Many Requests", "model": HTTPError},
     },
 )
 async def match_client(
@@ -126,7 +133,7 @@ async def match_client(
     redis: FromDishka[RedisService],
     background_tasks: BackgroundTasks,
     authorization: str = Depends(HTTPBearer()),
-) -> JSONResponse:
+):
     """
     Минимум: Если возникает взаимная симпатия,
             вернуть почту другого участника и отправить на почты участников сообщение вида:
@@ -136,6 +143,14 @@ async def match_client(
 
     """
     user = await auth_service.get_current_user(authorization.credentials)
+    if user.id == id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "error": "Bad Request",
+                "error_description": "Can't match with yourself",
+            },
+        )
     cache = await redis.get_cache(key=f"match_{user.id}")
     if cache:
         if cache == 15:
@@ -151,20 +166,20 @@ async def match_client(
             await redis.set_cache(key=f"match_{user.id}", value=cache)
     else:
         await redis.set_cache(key=f"match_{user.id}", value=1)
-    compared = await CoincidenceDao(db_connection).create(user_id=user.id, match_id=id)
+    compared = await CoincidenceDao(db_connection).create(dict(user_id=user.id, match_id=id))
     if compared:
         match_user = await UserDao(db_connection).get_by_id(id)
         background_tasks.add_task(
-            EmailService.send_email,
-            match_user.email,
-            "У вас есть совпадение",
-            f"Вы понравились {user.first_name}! Почта участника: {user.email}",
+            EmailService().send_email,
+            email_to=match_user.email,
+            subject="У вас есть совпадение",
+            html_content=f"Вы понравились {user.first_name}! Почта участника: {user.email}",
         )
         background_tasks.add_task(
-            EmailService.send_email,
-            user.email,
-            "У вас есть совпадение",
-            f"Вы понравились {match_user.first_name}! Почта участника: {match_user.email}",
+            EmailService().send_email,
+            email_to=user.email,
+            subject="У вас есть совпадение",
+            html_content=f"Вы понравились {match_user.first_name}! Почта участника: {match_user.email}",
         )
-        return JSONResponse(content={"email": match_user.email}, status_code=status.HTTP_200_OK)
+        return JSONResponse(content=MatchUser(email=match_user.email).model_dump(), status_code=status.HTTP_200_OK)
     return JSONResponse(content={}, status_code=status.HTTP_204_NO_CONTENT)

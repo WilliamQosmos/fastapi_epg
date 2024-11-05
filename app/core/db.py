@@ -33,7 +33,7 @@ class BaseDbConnection(Protocol):
 
 class DbConnection(BaseDbConnection):
     def __init__(self, session: AsyncSession) -> None:
-        self.session = AsyncSessionFactory()
+        self.session = session
 
     async def commit(self) -> None:
         await self.session.commit()

@@ -1,18 +1,19 @@
 from sqlalchemy import and_, delete, select, update
 
+from app.core.db import DbConnection
 from app.daos.base import BaseDao
 from app.models.coincidences import Coincidence
-from app.core.db import DbConnection
 
 
 class CoincidenceDao(BaseDao):
     def __init__(self, db_connection: DbConnection) -> None:
         self.session = db_connection.session
 
-    async def create(self, user_id: int, match_id: int) -> bool:
+    async def create(self, match_data: dict[str, int]) -> bool:
         statement = select(Coincidence).where(
-            and_(Coincidence.first_user_id == match_id,
-                 Coincidence.second_user_id == user_id)
+            and_(
+                Coincidence.first_user_id == match_data["match_id"], Coincidence.second_user_id == match_data["user_id"]
+            )
         )
         coincidence = await self.session.scalar(statement=statement)
         if coincidence and coincidence.compared:
@@ -24,7 +25,8 @@ class CoincidenceDao(BaseDao):
             return True
 
         _coincidence = Coincidence(
-            first_user_id=user_id, second_user_id=match_id, compared=False)
+            first_user_id=match_data["user_id"], second_user_id=match_data["match_id"], compared=False
+        )
         self.session.add(_coincidence)
         await self.session.commit()
         return False
