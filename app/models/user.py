@@ -14,3 +14,5 @@ class User(Base):
     last_name: Mapped[str100] = mapped_column(nullable=False)
     gender: Mapped[str | None]
     avatar: Mapped[str | None]
+    latitude: Mapped[float | None]
+    longitude: Mapped[float | None]

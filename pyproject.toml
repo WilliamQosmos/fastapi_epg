@@ -18,6 +18,8 @@ asyncpg = "^0.28.0"
 dishka = "^1.1.1"
 uvicorn = "^0.29.0"
 fastapi-mail = "^1.4.1"
+redis = "^5.2.0"
+pillow = "^11.0.0"
 
 [tool.poetry.group.dev.dependencies]
 isort = "^5.12.0"

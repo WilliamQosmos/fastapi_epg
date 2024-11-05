@@ -9,6 +9,7 @@ from app.schemas.user import UserIn
 class UserDao(BaseDao):
     def __init__(self, db_connection: DbConnection) -> None:
         self.session = db_connection.session
+        self.columns = User.__table__.c.keys()
 
     async def create(self, user_data: UserIn) -> User:
         _data = user_data.model_dump(include=set(self.columns))

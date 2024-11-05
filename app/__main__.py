@@ -1,16 +1,21 @@
-from contextlib import asynccontextmanager
-from dishka import make_async_container
-from dishka.integrations.fastapi import setup_dishka
-from fastapi.responses import JSONResponse
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.encoders import jsonable_encoder
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.docs import get_swagger_ui_html
 from fastapi.openapi.utils import get_openapi
+from fastapi.responses import JSONResponse
 
-from app.core.ioc import AdaptersProvider
-from app.core.config import settings
-from app.routers import api_router
+from contextlib import asynccontextmanager
+
+from dishka import make_async_container
+from dishka.integrations.fastapi import setup_dishka
+from fastapi.staticfiles import StaticFiles
+
 from app import __version__
+from app.core.config import settings
+from app.core.ioc import AdaptersProvider, InteractorProvider
+from app.routers import api_router
 
 
 @asynccontextmanager
@@ -19,11 +24,7 @@ async def lifespan(app: FastAPI):
     await app.state.dishka_container.close()
 
 
-app = FastAPI(
-    title=settings.PROJECT_NAME,
-    docs_url=None,
-    lifespan=lifespan
-)
+app = FastAPI(title=settings.PROJECT_NAME, docs_url=None, lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -34,9 +35,26 @@ app.add_middleware(
 )
 
 app.include_router(api_router, prefix=settings.BASE_PATH_PREFIX)
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
-container = make_async_container(AdaptersProvider())
+container = make_async_container(AdaptersProvider(), InteractorProvider())
 setup_dishka(container, app)
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    content = jsonable_encoder(
+        {"error": "Validation error", "error_description": "Invalid input data", "fields": exc.errors()}
+    )
+    return JSONResponse(status_code=422, content=content)
+
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    content = jsonable_encoder(
+        {"error": exc.detail.get("error"), "error_description": exc.detail.get("error_description")}
+    )
+    return JSONResponse(status_code=exc.status_code, content=content)
 
 
 @app.get("/specs", include_in_schema=False)

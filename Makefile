@@ -24,15 +24,18 @@ up:	## Run project with docker-compose
 down: ## Stop project with docker-compose and remove containers and networks
 	docker-compose down --remove-orphans | true
 
+.PHONY: db_upgrade
+db_upgrade:  ## Upgrade database
+	poetry run alembic upgrade head
 
 .PHONY: autogenerate
 autogenerate:  ## Generate migration file (usage: make autogenerate msg="migration message")
-	alembic revision --autogenerate -m "$(msg)"
+	poetry run alembic revision --autogenerate -m "$(msg)"
 
 .PHONY: downgrade
 downgrade:  ## Downgrade by 1 revision
-	alembic downgrade -1
+	poetry run alembic downgrade -1
 
 .PHONY: downgrade_to
 downgrade_to:  ## Downgrade to the specific revision (usage: make downgrade_to revision="revision")
-	alembic downgrade "$(revision)"
+	poetry run alembic downgrade "$(revision)"

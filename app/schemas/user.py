@@ -1,5 +1,6 @@
-from fastapi import UploadFile
-from pydantic import BaseModel, ConfigDict, EmailStr
+from enum import Enum
+from typing import Annotated
+from pydantic import BaseModel, ConfigDict, EmailStr, StringConstraints
 
 
 class UserBase(BaseModel):
@@ -13,10 +14,15 @@ class UserBase(BaseModel):
 
 
 class UserIn(UserBase):
-    avatar: UploadFile | None
-    password: str
+    password: Annotated[str, StringConstraints(min_length=8)]
+    avatar: str | None
 
 
 class UserOut(UserBase):
     id: int
     avatar: str | None
+
+
+class UserGender(str, Enum):
+    male = "мужчина"
+    female = "женщина"
