@@ -46,13 +46,13 @@ class Settings(BaseSettings):
             port=self.POSTGRES_PORT,
             path=self.POSTGRES_DB,
         )
-    
+
     REDIS_HOST: str
     REDIS_PORT: int = 6379
     REDIS_PASSWORD: str | None = None
     REDIS_DB: int = 0
     REDIS_TTL: int = 60 * 60
-    
+
     @computed_field
     @property
     def REDIS_URL(self) -> str:

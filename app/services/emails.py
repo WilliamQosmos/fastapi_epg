@@ -6,7 +6,6 @@ from app.core.config import settings
 
 
 class EmailService:
-
     def __init__(self) -> None:
         self.fast_mail = FastMail(settings.email_config)
 

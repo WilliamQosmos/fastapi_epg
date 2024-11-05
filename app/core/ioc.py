@@ -1,11 +1,11 @@
 from collections.abc import AsyncGenerator
 
 from dishka import Provider, Scope, provide
-from redis import Redis
+from redis.asyncio import Redis
 
 from app.core.config import settings
 from app.core.db import AsyncSessionFactory, DbConnection
-from app.services import AuthService, EmailService, SecurityService, RedisService
+from app.services import AuthService, EmailService, RedisService, SecurityService
 
 
 class AdaptersProvider(Provider):

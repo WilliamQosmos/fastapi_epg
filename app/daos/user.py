@@ -1,8 +1,8 @@
 from sqlalchemy import delete, select
 
+from app.core.db import DbConnection
 from app.daos.base import BaseDao
 from app.models.user import User
-from app.core.db import DbConnection
 from app.schemas.user import UserIn
 
 

@@ -1,4 +1,5 @@
 from fastapi import APIRouter
+
 from .clients import router as clients_router
 
 api_router = APIRouter()

@@ -1,7 +1,7 @@
 from .auth import AuthService
 from .emails import EmailService
-from .security import SecurityService
 from .redis import RedisService
+from .security import SecurityService
 
 __all__ = [
     "AuthService",

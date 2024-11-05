@@ -1,10 +1,11 @@
-import logging
 from fastapi import HTTPException, status
 
+import logging
 from datetime import timedelta
 
 from jose import JWTError, jwt
 
+from app.core.config import settings
 from app.core.db import DbConnection
 from app.daos.user import UserDao
 from app.models.user import User as UserModel
@@ -12,17 +13,10 @@ from app.schemas.token import Token, TokenData
 from app.schemas.user import UserIn
 from app.services.emails import EmailService
 from app.services.security import SecurityService
-from app.core.config import settings
 
 
 class AuthService:
-
-    def __init__(
-        self,
-        db_connection: DbConnection,
-        security_service: SecurityService,
-        email_service: EmailService
-    ):
+    def __init__(self, db_connection: DbConnection, security_service: SecurityService, email_service: EmailService):
         self.session = db_connection.session
         self.email_service = email_service
         self.security_service = security_service
@@ -63,8 +57,7 @@ class AuthService:
 
         access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
         access_token = self.security_service.create_access_token(
-            data={"sub": _user.email},
-            expires_delta=access_token_expires
+            data={"sub": _user.email}, expires_delta=access_token_expires
         )
         token_data = {
             "access_token": access_token,
@@ -72,15 +65,14 @@ class AuthService:
         }
         return Token(**token_data)
 
-    async def get_current_user(self) -> UserModel:
+    async def get_current_user(self, token: str) -> UserModel:
         credentials_exception = HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail={"error": "Unauthorized", "error_description": "Could not validate credentials"},
             headers={"WWW-Authenticate": "Bearer"},
         )
         try:
-            payload = jwt.decode(self.security_service.oauth2_scheme, settings.SECRET_KEY,
-                                 algorithms=[self.security_service.ALGORITHM])
+            payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[self.security_service.ALGORITHM])
             email: str = payload.get("sub")
             if not email:
                 raise credentials_exception
