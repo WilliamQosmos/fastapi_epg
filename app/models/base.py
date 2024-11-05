@@ -1,9 +1,9 @@
-from typing import Annotated
 import uuid
+from typing import Annotated
 
 from sqlalchemy import MetaData
-from sqlalchemy.orm import DeclarativeBase, mapped_column
 from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import DeclarativeBase, mapped_column
 
 convention = {
     "ix": "ix__%(column_0_label)s",

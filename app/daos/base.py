@@ -3,7 +3,6 @@ from typing import Protocol
 
 
 class BaseDao(Protocol):
-
     @abstractmethod
     async def create(self, request):
         pass

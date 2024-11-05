@@ -15,9 +15,7 @@ from typing_extensions import Self
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(
-        env_file=".env", env_ignore_empty=True, extra="ignore"
-    )
+    model_config = SettingsConfigDict(env_file=".env", env_ignore_empty=True, extra="ignore")
     BASE_PATH_PREFIX: str = "/api/v1"
     SECRET_KEY: str = secrets.token_urlsafe(32)
     # 60 minutes * 24 hours * 8 days = 8 days
@@ -84,8 +82,7 @@ class Settings(BaseSettings):
     def _check_default_secret(self, var_name: str, value: str | None) -> None:
         if value == "changethis":
             message = (
-                f'The value of {var_name} is "changethis", '
-                "for security, please change it, at least for deployments."
+                f'The value of {var_name} is "changethis", ' "for security, please change it, at least for deployments."
             )
             if self.ENVIRONMENT == "local":
                 warnings.warn(message, stacklevel=1)
@@ -95,9 +92,7 @@ class Settings(BaseSettings):
     @model_validator(mode="after")
     def _enforce_non_default_secrets(self) -> Self:
         self._check_default_secret("POSTGRES_PASSWORD", self.POSTGRES_PASSWORD)
-        self._check_default_secret(
-            "SMTP_PASSWORD", self.SMTP_PASSWORD
-        )
+        self._check_default_secret("SMTP_PASSWORD", self.SMTP_PASSWORD)
 
         return self
 

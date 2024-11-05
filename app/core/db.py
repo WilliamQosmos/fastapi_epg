@@ -22,7 +22,6 @@ AsyncSessionFactory = async_sessionmaker(
 
 
 class BaseDbConnection(Protocol):
-
     @abstractmethod
     def commit(self) -> None:
         raise NotImplementedError
