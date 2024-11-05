@@ -1,0 +1,29 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  pre-commit:
+    strategy:
+      matrix:
+        python-version: [3.11, 3.12]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+      - name: "Setup Python, Poetry and Dependencies"
+        uses: packetcoders/action-setup-cache-python-poetry@main
+        with:
+          python-version: ${{matrix.python-version}}
+          poetry-version: 1.8.2
+
+      - name: Run tests
+        run: |
+          poetry run deptry .
+          poetry run pre-commit --version
+          poetry run pre-commit install
+          poetry run pre-commit run --all-files
