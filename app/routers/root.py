@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
 from sqlalchemy import asc, desc, func, select
 
@@ -6,10 +7,12 @@ from app.core.db import DbConnection
 from app.models.user import User
 from app.schemas.exceptions import HTTPError, ValidationError
 from app.schemas.user import UserGender, UserOut
-from app.schemas.utils import ResponseOffsetPagination
+from app.schemas.utils import OrderBy, ResponseOffsetPagination
 from app.services.auth import AuthService
+from app.services.redis import RedisService
 from app.services.security import HTTPBearer
 
+R = 6371.0
 
 router = APIRouter(route_class=DishkaRoute)
 
@@ -24,23 +27,22 @@ router = APIRouter(route_class=DishkaRoute)
         400: {"description": "Bad request", "model": HTTPError},
         401: {"description": "Unauthorized", "model": HTTPError},
         403: {"description": "Forbidden", "model": HTTPError},
-        200: {"description": "OK", "model": ResponseOffsetPagination[UserOut]}
+        200: {"description": "OK", "model": ResponseOffsetPagination[UserOut]},
     },
-    status_code=status.HTTP_200_OK
+    status_code=status.HTTP_200_OK,
 )
 async def list(
     db_connection: FromDishka[DbConnection],
     auth_service: FromDishka[AuthService],
+    redis: FromDishka[RedisService],
     authorization: str = Depends(HTTPBearer()),
     gender: UserGender | None = Query(None, description="Фильтр по полу"),
     first_name: str | None = Query(None, description="Фильтр по имени"),
     last_name: str | None = Query(None, description="Фильтр по фамилии"),
-    sort_by_registration_date: str | None = Query(
-        "asc",
-        description="Сортировка по дате регистрации: 'asc' или 'desc'"
-    ),
+    radius_km: float | None = Query(None, ge=0.1, description="Фильтр в заданном радиусе относительно пользователя"),
+    sort_by_registration_date: OrderBy | None = Query(None, description="Сортировка по дате регистрации"),
     limit: int = Query(10, ge=1),
-    offset: int = Query(0, ge=0)
+    offset: int = Query(0, ge=0),
 ) -> ResponseOffsetPagination[UserOut]:
     """
     4.
@@ -59,6 +61,14 @@ async def list(
                 что улучшит производительность приложения).
     """
     user = await auth_service.get_current_user(authorization.credentials)
+
+    cache_key = f"user_list:{user.id}:{gender}:{first_name}:{last_name}:{radius_km}:{sort_by_registration_date}:{limit}:{offset}"
+
+    # Проверяем, есть ли данные в кэше
+    cached_data = await redis.get_cache(cache_key)
+    if cached_data:
+        return cached_data
+
     query = select(User)
 
     if gender:
@@ -75,9 +85,29 @@ async def list(
     elif sort_by_registration_date and sort_by_registration_date not in ["asc", "desc"]:
         raise HTTPException(
             status.HTTP_400_BAD_REQUEST,
-            detail={"error": "Bad Request",
-                    "error_description": "sort_by_registration_date must be 'asc' or 'desc'"}
+            detail={"error": "Bad Request", "error_description": "sort_by_registration_date must be 'asc' or 'desc'"},
         )
+
+    if radius_km:
+        user_lat = user.latitude
+        user_lon = user.longitude
+
+        # Вычисляем Haversine distance в запросе
+        distance = (
+            R
+            * 2
+            * func.asin(
+                func.sqrt(
+                    func.pow(func.sin((func.radians(User.latitude - user_lat)) / 2), 2)
+                    + func.cos(func.radians(user_lat))
+                    * func.cos(func.radians(User.latitude))
+                    * func.pow(func.sin((func.radians(User.longitude - user_lon)) / 2), 2)
+                )
+            )
+        )
+
+        query = query.filter(distance <= radius_km)
+        query = query.params(user_lat=user_lat, user_lon=user_lon)
 
     query = query.limit(limit).offset(offset)
 
@@ -85,9 +115,8 @@ async def list(
     total = await db_connection.session.scalar(select(func.count()).select_from(query.subquery()))
     users = result.scalars().all()
 
-    return ResponseOffsetPagination(
-        total=total,
-        offset=offset,
-        limit=limit,
-        items=users
-    )
+    response = ResponseOffsetPagination(total=total, offset=offset, limit=limit, items=users)
+
+    await redis.set_cache(cache_key, response)
+
+    return response

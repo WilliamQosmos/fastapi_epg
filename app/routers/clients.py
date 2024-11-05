@@ -151,7 +151,7 @@ async def match_client(
                 "error_description": "Can't match with yourself",
             },
         )
-    cache = await redis.get_cache(key=f"match_{user.id}")
+    cache = await redis.get_cache(key=f"match_{user.id}", pickle_dump=False)
     if cache:
         if cache == 15:
             raise HTTPException(
@@ -163,9 +163,9 @@ async def match_client(
             )
         else:
             cache += 1
-            await redis.set_cache(key=f"match_{user.id}", value=cache)
+            await redis.set_cache(key=f"match_{user.id}", value=cache, pickle_dump=False)
     else:
-        await redis.set_cache(key=f"match_{user.id}", value=1)
+        await redis.set_cache(key=f"match_{user.id}", value=1, pickle_dump=False)
     compared = await CoincidenceDao(db_connection).create(dict(user_id=user.id, match_id=id))
     if compared:
         match_user = await UserDao(db_connection).get_by_id(id)
